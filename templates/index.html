@@ -98,6 +98,13 @@
                             {% endif %}
                             <input type="hidden" name="page" id="id_page" value="{{ page_obj.number }}">
                         </form>
+                        <!-- Agregar el botón de exportación -->
+                        <div class="text-center mt-3">
+                            <form method="post" action="{% url 'export_csv' %}" enctype="multipart/form-data" id="exportCsv">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-success" onclick="exportToCSV()">Exportar a CSV</button>
+                            </form>
+                        </div>
 
                         <div class="text-center mt-3">
                             <a href="/" class="btn btn-primary">Volver al inicio</a>
@@ -184,6 +191,34 @@
                 document.getElementById("id_page").value = pageNumber;
                 document.getElementById("paginationForm").setAttribute("action", window.location.pathname + "?page=" + pageNumber);
                 document.getElementById("paginationForm").submit();
+            }
+    </script>
+    <script>
+        function exportToCSV() {
+                var csvContent = localStorage.getItem('csvContent');
+                if (csvContent) {
+                    // Crea un nuevo input tipo file con el contenido del archivo CSV
+                    var input = document.createElement('input');
+                    input.type = 'file';
+                    input.name = 'csv_content_file';
+                    input.style.display = 'none';
+                    // Crea un objeto Blob con el contenido del archivo CSV
+                    var blob = new Blob([csvContent], { type: 'text/csv' });
+                    // Crea un objeto File usando el Blob
+                    var file = new File([blob], 'csv_file.csv', { type: 'text/csv' });
+                    // Crea un nuevo objeto DataTransfer y añade el archivo al mismo
+                    var dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    // Asigna el objeto DataTransfer al input tipo file
+                    input.files = dataTransfer.files;
+                    
+                    // Agrega el nuevo input al formulario "exportCsv"
+                    var form = document.getElementById('exportCsv');
+                    form.appendChild(input);
+                } else {
+                    console.log("No se encontró contenido de archivo CSV en localStorage.");
+                }
+                document.getElementById("exportCsv").submit();
             }
     </script>
 </body>
