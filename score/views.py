@@ -1,11 +1,12 @@
 from django.shortcuts import render
 from django.core.paginator import Paginator, EmptyPage
 from django.views.decorators.csrf import csrf_exempt
+from .utils import get_plot
 import joblib
 import numpy as np
 import csv
 import io
-
+import pandas as pd
 # Create your views here
 
 
@@ -24,7 +25,7 @@ def PrediccionTemplateAPIView(request):
         predictions_model4 = []
         predictions_model5 = []
         ids = []  # Lista para almacenar los IDs
-
+        cursos=[] #Lista para guardar los cursos
         csv_content_file = request.FILES.get('csv_content_file')
         if csv_content_file:
             print('si encontró')
@@ -45,21 +46,53 @@ def PrediccionTemplateAPIView(request):
             # Procesar el contenido del CSV
             data = []
             try:
+                columnas=joblib.load('columnsorder.pkl')
+                df = pd.read_csv(csv_file)
+                id=df[['Documento de identificación (sin puntos)', 'Curso']]
+                df=df.drop(columns=['Timestamp', 'Documento de identificación (sin puntos)', 'Curso'])
+                #Se aplica la función get_dummies para separar las variables categóricas
+                for col in df.columns:
+                    datos = pd.get_dummies(df[col])
+                    df = pd.concat([
+                    df.drop(col, axis = 1),
+                    datos], axis = 1)
+                for col in columnas:
+                    if col in df.columns:
+                        pass
+                    else:
+                        df[col] = 0
+                #Se reacomodan las columnas del dataframe 2019_1 para coincidir con las de 2022_2
+                columnas2=list(df.columns)
+                for i, col in enumerate(columnas):
+                    if(col==columnas2[i]):
+                        print(col)
+                        pass
+                else:
+                    for j, col2 in enumerate(columnas2):
+                        if(col2==col):
+                            x, y=columnas2.index(columnas2[i]), columnas2.index(columnas2[j])
+                            columnas2[y], columnas2[x]= columnas2[x], columnas2[y]
+                            df=df[columnas2]
+                df.insert(0,'Documento',id['Documento de identificación (sin puntos)'])
+                df.insert(1,'Curso',id['Curso'])
+                ids=df['Documento'].tolist()
+                cursos=df['Curso'].tolist()
+                #csv_file=df.to_csv(index=False)
                 # Leer el archivo en modo de texto usando io.TextIOWrapper
-                text_file = io.TextIOWrapper(csv_file.file, encoding='utf-8')
-                print('text_file ',text_file)
-                reader = csv.reader(text_file)
+                #text_file = io.StringIO(csv_file)
+                #print('text_file ',text_file)
+                #reader = csv.reader(csv_file)
                 # Omitir la primera fila (cabecera)
-                print('reader ',reader)
+                #print('reader ',reader)
                 
-                next(reader)
-                for row in reader:
+                #next(reader)
+                #Guardar las filas como arrays
+                for i in range(len(df)):
                     # Convertir cada subitem del item en un np.array
-                    row_as_array = np.array(row[1:], dtype=float)  # Omitir la primera columna
+                    row = df.iloc[i, 2:]
+                    row_as_array = row.to_numpy() # Omitir la primera columna
                     data.append(row_as_array)
-
-                    # Agregar el ID a la lista de IDs
-                    ids.append(int(row[0]))
+                    
                 
                 # Verificar si data tiene elementos y realizar la predicción
                 if len(data) > 0:
@@ -83,8 +116,8 @@ def PrediccionTemplateAPIView(request):
                     predictions_model5 = [traducciones[int(modelo_prediccion_5.predict(item)[0])] for item in data_reshaped]
 
                     # Convertir el objeto zip en una lista
-                    predictions_list = list(zip(ids, predictions_model1, predictions_model2, predictions_model3, predictions_model4, predictions_model5))
-
+                    predictions_list = list(zip(ids, cursos, predictions_model1, predictions_model2, predictions_model3, predictions_model4, predictions_model5))
+                    graphs=get_plot(predictions_list)
                     # Obtener el número de página a partir del parámetro 'page' en la URL
                     page_number = request.GET.get('page',1)
                     # Crear un paginador con 10 registros por página
@@ -98,7 +131,8 @@ def PrediccionTemplateAPIView(request):
                         page_obj = paginator.get_page(paginator.num_pages)
                     return render(request, "index.html", {
                         'error_message': error_message,
-                        'page_obj': page_obj  # Pasar el objeto de página a la plantilla
+                        'page_obj': page_obj,  # Pasar el objeto de página a la plantilla
+                        'graphs':graphs
                     })
             except csv.Error as e:
                 error_message = f'Hubo un error al leer el archivo CSV: {str(e)}'
@@ -122,6 +156,7 @@ def export_csv(request):
     predictions_model4 = []
     predictions_model5 = []
     ids = []  # Lista para almacenar los IDs
+    cursos=[]
     if request.method == 'POST':
         print('entréeee')
         csv_content_file = request.FILES.get('csv_content_file')
@@ -137,21 +172,52 @@ def export_csv(request):
             # Procesar el contenido del CSV
             data = []
             try:
+                columnas=joblib.load('columnsorder.pkl')
+                df = pd.read_csv(csv_file)
+                id=df[['Documento de identificación (sin puntos)', 'Curso']]
+                df=df.drop(columns=['Timestamp', 'Documento de identificación (sin puntos)', 'Curso'])
+                #Se aplica la función get_dummies para separar las variables categóricas
+                for col in df.columns:
+                    datos = pd.get_dummies(df[col])
+                    df = pd.concat([
+                    df.drop(col, axis = 1),
+                    datos], axis = 1)
+                for col in columnas:
+                    if col in df.columns:
+                        pass
+                    else:
+                        df[col] = 0
+                #Se reacomodan las columnas del dataframe 2019_1 para coincidir con las de 2022_2
+                columnas2=list(df.columns)
+                for i, col in enumerate(columnas):
+                    if(col==columnas2[i]):
+                        print(col)
+                        pass
+                else:
+                    for j, col2 in enumerate(columnas2):
+                        if(col2==col):
+                            x, y=columnas2.index(columnas2[i]), columnas2.index(columnas2[j])
+                            columnas2[y], columnas2[x]= columnas2[x], columnas2[y]
+                            df=df[columnas2]
+                df.insert(0,'Documento',id['Documento de identificación (sin puntos)'])
+                df.insert(1,'Curso',id['Curso'])
+                ids=df['Documento'].tolist()
+                cursos=df['Curso'].tolist()
+                #csv_file=df.to_csv(index=False)
                 # Leer el archivo en modo de texto usando io.TextIOWrapper
-                text_file = io.TextIOWrapper(csv_file.file, encoding='utf-8')
-                print('text_file ',text_file)
-                reader = csv.reader(text_file)
+                #text_file = io.StringIO(csv_file)
+                #print('text_file ',text_file)
+                #reader = csv.reader(csv_file)
                 # Omitir la primera fila (cabecera)
-                print('reader ',reader)
+                #print('reader ',reader)
                 
-                next(reader)
-                for row in reader:
+                #next(reader)
+                #Guardar las filas como arrays
+                for i in range(len(df)):
                     # Convertir cada subitem del item en un np.array
-                    row_as_array = np.array(row[1:], dtype=float)  # Omitir la primera columna
+                    row = df.iloc[i, 2:]
+                    row_as_array = row.to_numpy() # Omitir la primera columna
                     data.append(row_as_array)
-
-                    # Agregar el ID a la lista de IDs
-                    ids.append(int(row[0]))
                 
                 # Verificar si data tiene elementos y realizar la predicción
                 if len(data) > 0:
@@ -175,7 +241,7 @@ def export_csv(request):
                     predictions_model5 = [traducciones[int(modelo_prediccion_5.predict(item)[0])] for item in data_reshaped]
 
                     # Combinar los datos en una lista que contenga el ID y las cinco predicciones
-                    combined_data = list(zip(ids, predictions_model1, predictions_model2, predictions_model3, predictions_model4, predictions_model5))
+                    combined_data = list(zip(ids, cursos, predictions_model1, predictions_model2, predictions_model3, predictions_model4, predictions_model5))
 
                     # Generar el archivo CSV con las predicciones
                     response = HttpResponse(content_type='text/csv')
@@ -183,7 +249,7 @@ def export_csv(request):
 
                     # Escribir los datos en el archivo CSV
                     writer = csv.writer(response)
-                    writer.writerow(['ID Estudiante', 'Ingles', 'Lectura critica', 'Matematicas', 'Ciencias naturales', 'Competencias ciudadanas'])
+                    writer.writerow(['ID Estudiante', 'Curso', 'Ingles', 'Lectura critica', 'Matematicas', 'Ciencias naturales', 'Competencias ciudadanas'])
                     for row in combined_data:
                         writer.writerow(row)
 
