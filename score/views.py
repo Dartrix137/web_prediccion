@@ -49,7 +49,7 @@ def PrediccionTemplateAPIView(request):
                 columnas=joblib.load('columnsorder.pkl')
                 df = pd.read_csv(csv_file)
                 id=df[['Documento de identificación (sin puntos)', 'Curso']]
-                df=df.drop(columns=['Timestamp', 'Documento de identificación (sin puntos)', 'Curso'])
+                df=df.drop(columns=[df.columns[0], 'Documento de identificación (sin puntos)', 'Curso'])
                 #Se aplica la función get_dummies para separar las variables categóricas
                 for col in df.columns:
                     datos = pd.get_dummies(df[col])
@@ -175,7 +175,7 @@ def export_csv(request):
                 columnas=joblib.load('columnsorder.pkl')
                 df = pd.read_csv(csv_file)
                 id=df[['Documento de identificación (sin puntos)', 'Curso']]
-                df=df.drop(columns=['Timestamp', 'Documento de identificación (sin puntos)', 'Curso'])
+                df=df.drop(columns=[df.columns[0], 'Documento de identificación (sin puntos)', 'Curso'])
                 #Se aplica la función get_dummies para separar las variables categóricas
                 for col in df.columns:
                     datos = pd.get_dummies(df[col])
